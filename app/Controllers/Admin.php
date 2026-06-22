@@ -11,51 +11,54 @@ class Admin extends BaseController
     {
         $title = 'Daftar Artikel (Admin)';
         $model = new ArtikelModel();
-
         $q = $this->request->getVar('q') ?? '';
         $kategori_id = $this->request->getVar('kategori_id') ?? '';
-
-        $data = [
-            'title'      => $title,
-            'q'          => $q,
-            'kategori_id'=> $kategori_id,
-        ];
-
-        $builder = $model->table('artikel')
-            ->select('artikel.*, kategori.nama_kategori')
-            ->join('kategori', 'kategori.id_kategori = artikel.id_kategori');
+        
+        // Apply query constraints directly to the model instance
+        $model->select('artikel.*, kategori.nama_kategori')
+              ->join('kategori', 'kategori.id_kategori = artikel.id_kategori');
 
         if ($q != '') {
-            $builder->like('artikel.judul', $q);
+            $model->like('artikel.judul', $q);
         }
         if ($kategori_id != '') {
-            $builder->where('artikel.id_kategori', $kategori_id);
+            $model->where('artikel.id_kategori', $kategori_id);
         }
 
-        $data['artikel'] = $builder->paginate(5);
-        $data['pager']   = $model->pager;
-
-        $kategoriModel   = new KategoriModel();
-        $data['kategori'] = $kategoriModel->findAll();
-
-        return view('artikel/admin_index', $data);
+        $artikel = $model->paginate(10, 'default');
+        
+        $data = [
+            'title' => $title,
+            'q' => $q,
+            'kategori_id' => $kategori_id,
+            'artikel' => $artikel,
+            'pager' => $model->pager->links() // Send rendered HTML links for AJAX/View
+        ];
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON($data);
+        } else {
+            $kategoriModel = new KategoriModel();
+            $data['kategori'] = $kategoriModel->findAll();
+            return view('artikel/admin_index', $data);
+        }
     }
 
     public function getAdd()
     {
         $kategoriModel = new KategoriModel();
         return view('artikel/form_add', [
-            'title'   => 'Tambah Artikel',
-            'kategori'=> $kategoriModel->findAll(),
+            'title' => 'Tambah Artikel',
+            'kategori' => $kategoriModel->findAll(),
         ]);
     }
 
     public function postAdd()
     {
+        helper(['url']); // Required for url_title()
         $rules = [
-            'judul'       => 'required',
+            'judul' => 'required',
             'id_kategori' => 'required|integer',
-            'gambar'      => 'uploaded[gambar]|mime_in[gambar,image/jpg,image/jpeg,image/png,image/gif,image/webp,video/mp4]|max_size[gambar,20480]'
+            'gambar' => 'uploaded[gambar]|mime_in[gambar,image/jpg,image/jpeg,image/png,image/gif,image/webp,video/mp4]|max_size[gambar,20480]'
         ];
 
         if ($this->validate($rules)) {
@@ -65,11 +68,11 @@ class Admin extends BaseController
 
             $model = new ArtikelModel();
             $model->insert([
-                'judul'       => $this->request->getPost('judul'),
-                'isi'         => $this->request->getPost('isi'),
-                'slug'        => url_title($this->request->getPost('judul'), '-', true),
+                'judul' => $this->request->getPost('judul'),
+                'isi' => $this->request->getPost('isi'),
+                'slug' => url_title($this->request->getPost('judul'), '-', true),
                 'id_kategori' => $this->request->getPost('id_kategori'),
-                'gambar'      => $newName,
+                'gambar' => $newName,
             ]);
             return redirect()->to('/admin')->with('success', 'Artikel berhasil ditambahkan!');
         }
@@ -78,12 +81,12 @@ class Admin extends BaseController
 
     public function getEdit($id)
     {
-        $model         = new ArtikelModel();
+        $model = new ArtikelModel();
         $kategoriModel = new KategoriModel();
         return view('artikel/form_edit', [
-            'title'   => 'Edit Artikel',
+            'title' => 'Edit Artikel',
             'artikel' => $model->find($id),
-            'kategori'=> $kategoriModel->findAll(),
+            'kategori' => $kategoriModel->findAll(),
         ]);
     }
 
@@ -93,15 +96,15 @@ class Admin extends BaseController
         $artikel = $model->find($id);
 
         $rules = [
-            'judul'       => 'required',
+            'judul' => 'required',
             'id_kategori' => 'required|integer',
-            'gambar'      => 'mime_in[gambar,image/jpg,image/jpeg,image/png,image/gif,image/webp,video/mp4]|max_size[gambar,20480]'
+            'gambar' => 'mime_in[gambar,image/jpg,image/jpeg,image/png,image/gif,image/webp,video/mp4]|max_size[gambar,20480]'
         ];
 
         if ($this->validate($rules)) {
             $data = [
-                'judul'       => $this->request->getPost('judul'),
-                'isi'         => $this->request->getPost('isi'),
+                'judul' => $this->request->getPost('judul'),
+                'isi' => $this->request->getPost('isi'),
                 'id_kategori' => $this->request->getPost('id_kategori')
             ];
 

@@ -1,87 +1,121 @@
 <?= $this->include('template/admin_header'); ?>
+<h2><?= $title; ?></h2>
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form id="search-form" class="form-inline">
+            <input type="text" name="q" id="search-box" value="<?= $q; ?>" placeholder="Cari judul artikel"
+                class="form-control mr-2">
+            <select name="kategori_id" id="category-filter" class="form-
+control mr-2">
 
-<div class="admin-header">
-    <h2>Management Artikel</h2>
-    <a href="<?= base_url('admin/add'); ?>" class="btn btn-default">+ Tambah Artikel</a>
-</div>
+                <option value="">Semua Kategori</option>
+                <?php foreach ($kategori as $k): ?>
+                    <option value="<?= $k['id_kategori']; ?>" <?= ($kategori_id
+                          == $k['id_kategori']) ? 'selected' : ''; ?>>
+                        <?= $k['nama_kategori'];
+                        ?>
+                    </option>
 
-<form method="get" class="admin-toolbar">
-    <input type="text" name="q" value="<?= $q; ?>" placeholder="Cari judul artikel..." 
-           style="flex: 1;"
-           oninput="clearTimeout(window._t); window._t = setTimeout(() => this.form.submit(), 800)">
-
-    <select name="kategori_id" onchange="this.form.submit()">
-        <option value="">Semua Kategori</option>
-        <?php foreach ($kategori as $k): ?>
-            <option value="<?= $k['id_kategori']; ?>" <?= ($kategori_id == $k['id_kategori']) ? 'selected' : ''; ?>>
-                <?= $k['nama_kategori']; ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-
-    <button type="submit" class="btn btn-ghost">Cari</button>
-</form>
-
-<div class="table-wrapper">
-    <table class="modern-table">
-        <thead>
-            <tr>
-                <th style="width: 50px;">ID</th>
-                <th style="width: 80px;">Media</th>
-                <th>Judul & Konten</th>
-                <th>Kategori</th>
-                <th>Status</th>
-                <th style="text-align: center;">Aksi</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if (count($artikel) > 0): ?>
-                <?php foreach ($artikel as $row): ?>
-                    <tr>
-                        <td><?= $row['id']; ?></td>
-                        <td>
-                            <?php if(!empty($row['gambar'])): ?>
-                                <?php if (pathinfo($row['gambar'], PATHINFO_EXTENSION) === 'mp4'): ?>
-                                    <video src="<?= base_url('gambar/app/' . $row['gambar']); ?>" 
-                                           style="width: 60px; height: 45px; object-fit: cover; border-radius: var(--r-sm);" 
-                                           muted playsinline onmouseover="this.play()" onmouseout="this.pause()"></video>
-                                <?php else: ?>
-                                    <img src="<?= base_url('gambar/app/' . $row['gambar']); ?>" 
-                                         style="width: 60px; height: 45px; object-fit: cover; border-radius: var(--r-sm);">
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <div style="width: 60px; height: 45px; background: var(--c-ground); border-radius: var(--r-sm);"></div>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <span class="title-cell"><?= $row['judul']; ?></span>
-                            <span class="excerpt-cell"><?= substr(strip_tags($row['isi']), 0, 70); ?>...</span>
-                        </td>
-                        <td><span class="badge badge-edit"><?= $row['nama_kategori']; ?></span></td>
-                        <td>
-                            <span class="status-pill <?= $row['status'] == 1 ? 'status-published' : 'status-draft'; ?>">
-                                <?= $row['status'] == 1 ? 'Published' : 'Draft'; ?>
-                            </span>
-                        </td>
-                        <td style="text-align: center;">
-                            <div class="action-cell">
-                                <a class="btn btn-warning btn-sm" href="<?= base_url('/admin/edit/' . $row['id']); ?>">EDIT</a>
-                                <a class="btn btn-danger btn-sm" 
-                                   onclick="return confirm('Yakin ingin menghapus artikel ini?')" 
-                                   href="<?= base_url('/admin/delete/' . $row['id']); ?>">DELETE</a>
-                            </div>
-                        </td>
-                    </tr>
                 <?php endforeach; ?>
-            <?php else: ?>
-                <tr><td colspan="5" class="text-center text-muted">Tidak ada artikel yang ditemukan.</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+            </select>
+            <input type="submit" value="Cari" class="btn btn-primary">
+        </form>
+    </div>
 </div>
-
-<div class="mt-6">
-    <?= $pager->only(['q', 'kategori_id'])->links(); ?>
+<div id="article-container">
 </div>
+<div id="pagination-container">
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        const articleContainer = $('#article-container');
+        const paginationContainer = $('#pagination-container');
+        const searchForm = $('#search-form');
+        const searchBox = $('#search-box');
+        const categoryFilter = $('#category-filter');
+        const fetchData = (url) => {
+            $.ajax({
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function (data) {
+                    renderArticles(data.artikel);
+                    renderPagination(data.pager, data.q, data.kategori_id);
+                }
+            });
+        };
+        const renderArticles = (articles) => {
+            let html = '<table class="table">';
 
+            html +=
+                '<thead><tr><th>ID</th><th>Judul</th><th>Kategori</th><th>Status</th><th>Aks
+            i</th ></tr ></thead > <tbody>';
+        if (articles.length > 0) {
+                    articles.forEach(article => {
+                        html += `
+                        <tr>
+                        <td>${article.id}</td>
+                        <td>
+                        <b>${article.judul}</b>
+
+                        <p><small>${article.isi.substring(0,
+
+                            50)}</small></p>
+
+                        </td>
+                        <td>${article.nama_kategori}</td>
+                        <td>${article.status}</td>
+                        <td>
+
+                        <a class="btn btn-sm btn-info"
+
+                        href="/admin/artikel/edit/${article.id}">Ubah</a>
+
+                        <a class="btn btn-sm btn-danger" onclick="return
+                        confirm('Yakin menghapus data?');"
+                        href="/admin/artikel/delete/${article.id}">Hapus</a>
+
+                        </td>
+                        </tr>
+                        `;
+                    });
+                } else {
+                    html += '<tr><td colspan="5">Tidak ada data.</td></tr>';
+                }
+                html += '</tbody></table > ';
+            articleContainer.html(html);
+        };
+        const renderPagination = (pager, q, kategori_id) => {
+            let html = '<nav><ul class="pagination">';
+            pager.links.forEach(link => {
+
+                let url = link.url ?
+
+                    `${link.url}&q=${q}&kategori_id=${kategori_id}` : '#';
+
+                html += `<li class="page-item ${link.active ? 'active' :
+
+                    ''}"><a class="page-link" href="${url}">${link.title}</a></li>`;
+
+            });
+            html += '</ul></nav>';
+            paginationContainer.html(html);
+        };
+        searchForm.on('submit', function (e) {
+            e.preventDefault();
+            const q = searchBox.val();
+            const kategori_id = categoryFilter.val();
+            fetchData(`/admin/artikel?q=${q}&kategori_id=${kategori_id}`);
+        });
+        categoryFilter.on('change', function () {
+            searchForm.trigger('submit');
+        });
+        // Initial load
+        fetchData('/admin/artikel');
+    });
+</script>
 <?= $this->include('template/admin_footer'); ?>
